@@ -120,6 +120,9 @@ ggplot(weather_subset, aes(x = Age, fill = check_weather_method)) +
 
 
 ```
+ 
+## Conclusion 
+# Relationship between preferred method to check weather and age
 
-Visually speaking, the first thing I notice is that there seems to be a negative correlation between age group and the use of the deafult weather app on someone's phone to check the weather. Meaning younger age groups tend to use the deafult weather app more than older age groups. The opposite happens with using Local TV News, where older age gropus have significantly higher rates of using it to check the weather than younger age gropus. 
+Visually speaking, the first thing I notice is that there seems to be a negative correlation between age group and the use of the default weather app on someone's phone to check the weather. Meaning younger age groups tend to use the default weather app more than older age groups. The opposite happens with using Local TV News, where older age groups have significantly higher rates of using it to check the weather than younger age groups. 
 
