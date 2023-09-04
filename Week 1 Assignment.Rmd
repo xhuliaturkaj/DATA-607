@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Assignment – Loading Data into a Data Frame
 
-# Week one - Xhulia Turkaj -  DATA 607 MSDS 
+
 
 I have chosen to work with the dataset "weather-check.csv" from the author of  "Where People Go To Check The Weather", Walt Hickey found on the fivethirtyeight blog website. 
 
