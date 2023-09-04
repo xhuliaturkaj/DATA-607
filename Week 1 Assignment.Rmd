@@ -9,22 +9,117 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Assignment – Loading Data into a Data Frame
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Week one - Xhulia Turkaj -  DATA 607 MSDS 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+I have chosen to work with the dataset "weather-check.csv" from the author of  "Where People Go To Check The Weather", Walt Hickey found on the fivethirtyeight blog website. 
 
-```{r cars}
-summary(cars)
+-Loading the packages 
+```{r}
+library(dplyr)
+library(ggplot2)
 ```
 
-## Including Plots
+-Loading the dataset from my github repository 
 
-You can also embed plots, for example:
+```{r}
+weather <- read.csv("https://raw.githubusercontent.com/xhuliaturkaj/DATA-607/main/weather-check.csv",  header = TRUE, row.names = 1)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+head(weather)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+When I first run the summary function on the dataframe I realized that all the variables are of type character. I need to change that. While I change the type I will change the variable names as well. 
+
+Starting with the first one "Do you typically check a daily weather report?" 
+
+```{r}
+weather$check_weather_daily <- as.factor(weather$Do.you.typically.check.a.daily.weather.report.)
+
+```
+
+And four other variables that need the same formating.
+```{r}
+weather$check_weather_method <-as.factor(weather$How.do.you.typically.check.the.weather.)
+
+
+weather$check_weather_from_smartwatch <-as.factor(weather$If.you.had.a.smartwatch..like.the.soon.to.be.released.Apple.Watch...how.likely.or.unlikely.would.you.be.to.check.the.weather.on.that.device.)
+
+weather$gender <-as.factor(weather$What.is.your.gender.)
+
+weather$US.Region <-as.factor(weather$US.Region)
+
+summary(weather$US.Region)
+
+```
+
+The data for the variables age and income need to be converted to ordered categorical. 
+
+```{r}
+
+unique(weather$Age)
+# Replace "-" with NA
+
+weather$Age[weather$Age == "-"] <- NA
+
+#place the age groups in ascending ordered levels 
+ordered_levels <- c("18 - 29", "30 - 44", "45 - 59", "60+", "NA")
+
+weather$Age <- factor(weather$Age, levels = ordered_levels, ordered = TRUE) 
+
+summary(weather$Age)
+
+```
+
+Now I will follow the same approach for the income variable. 
+
+```{r}
+unique(weather$How.much.total.combined.money.did.all.members.of.your.HOUSEHOLD.earn.last.year.)
+
+weather$How.much.total.combined.money.did.all.members.of.your.HOUSEHOLD.earn.last.year.[weather$How.much.total.combined.money.did.all.members.of.your.HOUSEHOLD.earn.last.year.== "-"] <- NA
+
+ordered_income_levels <- c("$0 to $9,999", "$10,000 to $24,999", "$25,000 to $49,999", "$50,000 to $74,999", "$75,000 to $99,999", "$100,000 to $124,999", "$125,000 to $149,999","$150,000 to $174,999","$175,000 to $199,999","Prefer not to answer", "NA" )
+
+weather$income <- factor(weather$How.much.total.combined.money.did.all.members.of.your.HOUSEHOLD.earn.last.year., levels = ordered_income_levels, ordered = TRUE) 
+
+summary(weather$income)
+
+colnames(weather)
+
+```
+
+Next, I will subset the dataset to include only my variables of interest.
+
+```{r}
+
+
+
+weather_subset  <- na.omit(select(weather, "Age","check_weather_method", "check_weather_from_smartwatch", "check_weather_daily", "check_weather_method" ))
+
+head(weather_subset)
+```
+
+I am interested to look into the relationship between  people's prefered method to check the weather and their age.  
+
+```{r}
+#Cross tabulation between my two variables of interest 
+table(weather_subset$Age, weather_subset$check_weather_method)
+
+```
+
+Visualize the relationship 
+```{r}
+
+ggplot(weather_subset, aes(x = Age, fill = check_weather_method)) +
+  geom_bar(position = "fill") +
+  ggtitle("Preferred Method to Check Weather by Age Group") +
+  xlab("Age Group") +
+  ylab("Count") 
+
+
+```
+
+Visually speaking, the first thing I notice is that there seems to be a negative correlation between age group and the use of the deafult weather app on someone's phone to check the weather. Meaning younger age groups tend to use the deafult weather app more than older age groups. The opposite happens with using Local TV News, where older age gropus have significantly higher rates of using it to check the weather than younger age gropus. 
+
