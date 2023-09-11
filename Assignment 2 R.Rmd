@@ -1,0 +1,218 @@
+---
+title: "Assignment 2 data 607"
+author: "Xhulia Turkaj"
+date: "2023-09-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Assignment – SQL and R
+
+ Choose six recent popular movies. Ask at least five people that you know (friends, family, classmates, imaginary
+friends if necessary) to rate each of these movies that they have seen on a scale of 1 to 5. Take the results
+(observations) and store them in a SQL database of your choosing. Load the information from the SQL database
+into an R dataframe.
+
+# Loading the packages
+
+```{r}
+
+library(RMySQL)
+library(tidyverse)
+library(knitr)
+library(tidytext)
+library(wordcloud)
+```
+
+# Connecting to the MySQL Database:
+
+
+```{r mysql connection}
+
+movies <- dbConnect(RMySQL::MySQL(), 
+                 host = "data607xh.mysql.database.azure.com", 
+                 user = "xhulia",
+                 password = "Xt123456!",
+                 dbname = "movie_ratings")
+
+```
+
+# Here I will add some SQL code chunks to recreate in this document how I set up my database
+
+```{sql connection=movies}
+-- Create Table Movies
+CREATE TABLE Movies (
+    movie_id INT PRIMARY KEY AUTO_INCREMENT,
+    movie_name VARCHAR(255) NOT NULL,
+    release_year INT,
+    overall_rating FLOAT
+);
+```
+
+
+```{sql connection=movies}
+-- Create Table Respondents
+CREATE TABLE Respondents (
+    respondent_id INT PRIMARY KEY AUTO_INCREMENT,
+    FirstName VARCHAR(255) NOT NULL,
+    LastName VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    UNIQUE (FirstName, LastName, email)
+);
+```
+
+
+```{sql connection=movies}
+-- Create Table ReviewsAndRatings
+CREATE TABLE ReviewsAndRatings (
+    rating_id INT PRIMARY KEY AUTO_INCREMENT,
+    respondent_id INT,
+    movie_id INT,
+    review_text TEXT,
+    rating INT,
+    FOREIGN KEY (respondent_id) REFERENCES Respondents(respondent_id),
+    FOREIGN KEY (movie_id) REFERENCES Movies(movie_id),
+    CHECK (review_text IS NOT NULL OR rating IS NOT NULL)
+);
+
+```
+
+```{sql connection=movies}
+-- Insert Data into Movies
+INSERT INTO Movies (movie_name, release_year) 
+VALUES ('Titanic', 1997), 
+       ('Barbie', 2023), 
+       ('The Boy in the Striped Pajamas', 2008),
+       ('Home Alone', 1990), 
+       ('Mr. & Mrs. Smith', 2005),
+       ('The Pod Generation', 2023);
+
+```
+
+```{sql connection=movies}
+-- Insert Data into Respondents
+INSERT INTO Respondents (FirstName, LastName, email)
+VALUES ('Xhulia', 'Turkaj', 'xhulia.turkaj@example.com'),
+       ('Jane', 'Smith', 'jane.smith@example.com'),
+       ('Emily', 'Turkaj', 'emily.turkaj@example.com'),
+       ('Michael', 'B', 'michael.b@example.com'),
+       ('Sarah', 'B', 'sarah.b@example.com'),
+       ('Chris', 'Chris', 'chris.chris@example.com'),
+       ('Jessica', 'W', 'jessica.w@example.com'),
+       ('Daniel', 'Daniel', 'daniel.daniel@example.com'),
+       ('Laura', 'Walker', 'laura.walker@example.com'),
+       ('Laura', 'Robinson', 'laura.robinson@example.tv');
+
+```
+
+```{sql connection=movies}
+INSERT INTO ReviewsAndRatings (respondent_id, movie_id, review_text, rating)
+VALUES
+  ((SELECT respondent_id FROM Respondents WHERE email = 'xhulia.turkaj@example.com'), (SELECT movie_id FROM Movies WHERE movie_name = 'Titanic '), 'Great movie!', 5),
+  ((SELECT respondent_id FROM Respondents WHERE email = 'xhulia.turkaj@example.com'), (SELECT movie_id FROM Movies WHERE movie_name = 'Barbie'), 'Not for me', 1),
+  ((SELECT respondent_id FROM Respondents WHERE email = 'jane.smith@example.com'), (SELECT movie_id FROM Movies WHERE movie_name = 'Barbie'), 'Not my taste', 2),
+  ((SELECT respondent_id FROM Respondents WHERE email = 'emily.turkaj@example.com'), (SELECT movie_id FROM Movies WHERE movie_name = 'The Boy in the Striped Pajamas'), 'Heartbreaking', 5),
+  ((SELECT respondent_id FROM Respondents WHERE email = 'michael.b@example.com'), (SELECT movie_id FROM Movies WHERE movie_name = 'Mr. & Mrs. Smith'), 'Action-packed', 4),
+  ((SELECT respondent_id FROM Respondents WHERE email = 'chris.chris@example.com'), (SELECT movie_id FROM Movies WHERE movie_name = 'Titanic '), 'Love it', NULL), 
+  ((SELECT respondent_id FROM Respondents WHERE email = 'jessica.w@example.com'), (SELECT movie_id FROM Movies WHERE movie_name = 'Barbie'), NULL, 3); 
+```
+
+```{sql connection=movies}
+-- Turn off Safe Updates
+SET SQL_SAFE_UPDATES = 0;
+
+```
+
+```{sql connection=movies}
+UPDATE Movies
+SET overall_rating = (
+    SELECT AVG(rating)
+    FROM ReviewsAndRatings
+    WHERE ReviewsAndRatings.movie_id = Movies.movie_id
+);
+```
+
+```{sql connection=movies}
+SELECT * FROM Movies;
+```
+
+```{sql connection=movies}
+SELECT * FROM Respondents;
+```
+
+```{sql connection=movies}
+SELECT * FROM ReviewsAndRatings;
+```
+
+
+
+# Pulling database tables  into R Data Frames
+
+```{r}
+
+movies_df <- dbGetQuery(movies, "SELECT * FROM Movies")
+respondents_df <- dbGetQuery(movies, "SELECT * FROM Respondents")
+reviews_and_ratings_df <- dbGetQuery(movies, "SELECT * FROM ReviewsAndRatings")
+
+```
+
+# Quick summary of the newly created dataframes
+ 
+```{r}
+summary(movies_df)
+summary(respondents_df)
+summary(reviews_and_ratings_df)
+```
+# Lets calculate again the overall rating (average) of each movie that was rated  and compare it to the overall_rating column  from the movies df which I calculated in SQL 
+ 
+ 
+```{r}
+# First let's join the data frames on the movie_id variable
+joined_df_ratings <- inner_join(reviews_and_ratings_df, movies_df, by = "movie_id")
+
+# Lets calculate the overall rating 
+
+overall_ratings_df <- joined_df_ratings %>%
+  filter(!is.na(rating)) %>%  
+  group_by(movie_id, movie_name) %>%  
+  summarise(overall_rating_R = mean(rating), .groups = "keep", na.rm = TRUE)  
+
+
+print(overall_ratings_df)
+
+print(movies_df)
+
+summary(overall_ratings_df)
+summary(movies_df)
+```
+# Visualize the overall rating (mean) of the  movies 
+```{r}
+
+ggplot(overall_ratings_df, aes(x = movie_name, y = overall_rating_R)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Overall Ratings of Movies",
+       x = "Movie Name",
+       y = "Average Rating") 
+
+```
+#Word Cloud of the Movie Reviews
+
+```{r}
+unnested_reviews <- reviews_and_ratings_df %>%
+  unnest_tokens(word, review_text)
+
+word_count <- unnested_reviews %>%
+  count(word, sort = TRUE)
+
+wordcloud(words = word_count$word, freq = word_count$n, colors = brewer.pal(8, "Dark2"), random.order = FALSE, scale=c(3, 0.5))
+
+
+```
+
+
+
+
+ 
