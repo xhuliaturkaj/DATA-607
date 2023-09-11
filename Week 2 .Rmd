@@ -34,19 +34,36 @@ library(RColorBrewer)
 ```{r mysql connection}
 
 
-dotenv::load_dot_env()
- pasw<- Sys.getenv(pasw)
+# MYSQL_PW <- readLines("pasw.txt")[1] I was attempting to resolve the pasword issue but ran out of time 
+
+
 
 
 movies <- dbConnect(RMySQL::MySQL(), 
                  host = "data607xh.mysql.database.azure.com", 
                  user = "xhulia",
-                 password = pasw
+                 password = "Xt123456!",
                  dbname = "movie_ratings")
 
 ```
 
 # Here I will add some SQL code chunks to recreate in this document how I set up my database
+
+```{sql connection=movies}
+DROP DATABASE IF EXISTS movie_ratings;
+```
+
+
+```{sql connection=movies}
+CREATE DATABASE movie_ratings;
+```
+
+```{sql connection=movies}
+USE movie_ratings;
+
+```
+
+
 
 ```{sql connection=movies}
 -- Create Table Movies
