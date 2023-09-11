@@ -198,7 +198,7 @@ ggplot(overall_ratings_df, aes(x = movie_name, y = overall_rating_R)) +
        y = "Average Rating") 
 
 ```
-#Word Cloud of the Movie Reviews
+# Word Cloud of the Movie Reviews
 
 ```{r}
 unnested_reviews <- reviews_and_ratings_df %>%
