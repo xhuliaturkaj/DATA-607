@@ -1,0 +1,114 @@
+---
+title: "Week 3 Assignment"
+author: "Xhulia Turkaj"
+date: "2023-09-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Week 3  Assignment - Data 607 MSDS 
+
+
+
+-Loading the necessary libraries 
+
+```{r}
+library(tidyverse)
+
+```
+
+### 1. Using the 173 majors listed in fivethirtyeight.com’s College Majors dataset [https://fivethirtyeight.com/features/the-economic-guide-to-picking-a-college-major/], provide code that identifies the majors that contain either "DATA" or "STATISTICS"
+
+-Loading the data set 
+```{r}
+majors <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/majors-list.csv",header = TRUE, sep = ",")
+
+head(majors)
+```
+Filtering and printing the rows where the Major column  from the "majors" data frame contains either "DATA" or "STATISTICS". 
+
+```{r}
+majors %>% 
+  filter(str_detect(Major, regex("statistics|data", ignore_case = TRUE))) %>% 
+  print()
+```
+
+
+
+### 2. Write code that transforms the data below:
+
+[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+[13] "olive"        "salal berry"
+
+Into a format like this:
+c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee", "mulberry", "olive", "salal berry")
+
+```{r}
+fruits_and_veggies <- '[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+
+[13] "olive"        "salal berry"'
+
+fruits_and_veggies
+```
+
+
+Use the str_extract_all function with the '[A-Za-z]+.?[A-Za-z]+' pattern to detect single words and possible set of two words with a space in between. Next convert the string into a vector. 
+
+
+```{r}
+fruitveggies_vector <-  unlist(stringr::str_extract_all(fruits_and_veggies, pattern ='[A-Za-z]+.?[A-Za-z]+') )
+fruitveggies_vector
+
+```
+
+### 3 Describe, in words, what these expressions will match:
+
+(.)\1\1  This expression matches three occurences in a row  of a  specific character or string text 
+
+
+
+"(.)(.)\\2\\1"  This expression will match four characters where the first and fourth characters are the same, and the second and third characters are the same.
+
+
+(..)\1 This expression will match two characters where any character is immediately followed by that same character 
+
+
+"(.).\\1.\\1" This expression will match three identical characters separated by one identical character of any kind between them. 
+
+
+"(.)(.)(.).*\\3\\2\\1" This expression will match three characters followed by those same three characters but in reverse order
+
+
+### 4. Construct regular expressions to match words that:
+Start and end with the same character.
+Contain a repeated pair of letters (e.g. "church" contains "ch" repeated twice.)
+Contain one letter repeated in at least three places (e.g. "eleven" contains three "e"s.)
+
+```{r}
+testing_vector <- c("apple", "banana", "church", "eleven", "bob", "pepper", "mississippi", "noon", "level", "radar", "deified", "redivider", "madam", "civic", "rotor")
+
+# Start and end with the same character.
+pattern_1 <- "^(.).*\\1$"
+str_extract(testing_vector, pattern_1)
+
+# Contain a repeated pair of letters (e.g. "church" contains "ch" repeated twice.)
+pattern_2 <- "([a-zA-Z]{2}).*\\1"
+str_extract(testing_vector, pattern_2)
+
+# Contain one letter repeated in at least three places (e.g. "eleven" contains three "e"s.)
+
+pattern_3 <- "\\b(?:[a-zA-Z]*([a-zA-Z])(?:[^\\1]*\\1){2,}[a-zA-Z]*){1,}\\b"
+str_extract(testing_vector, pattern_3)
+
+```
+
+
