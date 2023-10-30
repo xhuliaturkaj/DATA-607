@@ -1,0 +1,76 @@
+---
+title: "Assignment nr 9"
+author: "Xhulia Turkaj"
+date: "2023-10-29"
+output:  
+    html_document: default
+---
+
+
+## Assignment - Web APIs
+
+The New York Times web site provides a rich set of APIs, as described here: https://developer.nytimes.com/apis
+You’ll need to start by signing up for an API key.
+Your task is to choose one of the New York Times APIs, construct an interface in R to read in the JSON data, and
+transform it into an R DataFrame.
+
+
+ Loading the required packages
+ 
+```{r load-libraries,echo=TRUE, results='hide', message=FALSE}
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(kableExtra)
+library(tm)
+library(wordcloud)
+library(data.table)
+```
+
+
+I chose to work with the books API 
+
+
+```{r}
+#Retrieve API Key
+
+api_key <- fread("https://raw.githubusercontent.com/xhuliaturkaj/DATA-607/main/key.csv", header = FALSE)
+api_key <- as.character(api_key$V1)
+
+#Using the API key to get acces to the url 
+
+url <- paste0("https://api.nytimes.com/svc/books/v3/lists/best-sellers/history.json?api-key=", api_key)
+
+
+#Access API information
+response <- GET(url)
+
+
+status_code(response)
+```
+
+
+```{r}
+
+
+data <- httr::content(response, as = "text")
+
+data<- fromJSON(data)
+
+
+data <-as.data.frame(data)
+
+
+
+
+
+data %>% kable() %>% kable_styling()
+```
+
+```
+
+
+
+
+
+
