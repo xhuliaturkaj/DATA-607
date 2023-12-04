@@ -1,0 +1,299 @@
+---
+title: "DATA 607 - Week 10 Assignment"
+author: "Xhulia Turkaj"
+date: "2023-12-02"
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+
+In *Text Mining with R*, Chapter 2 looks at 'Sentiment Analysis'. In this assignment, you should start by getting the primary example code from chapter 2 working in an R Markdown document.  You should provide a citation to this base code.  You’re then asked to extend the code in two ways:  
+•	Work with a different corpus of your choosing, and  
+•	Incorporate at least one additional sentiment lexicon (possibly from another R package that you’ve found through research).
+
+The base code used in this assignment is taken from:  
+'Text Mining with R' by Julia Silge and David Robinson (O’Reilly).  
+Copyright 2017 Julia Silge and David Robinson,978-1-491-98165-8. 
+
+
+## Sentiment analysis of "Adventures of Sherlock Holmes" by Arthur Conan Doyle 1859-1930
+
+In this project, I am conducting a sentiment analysis on "The Adventures of Sherlock Holmes" by Arthur Conan Doyle, utilizing the text sourced from the Gutenberg package. 
+My focus is on examining how sentiments vary from one story to another and how different lexicons Bing, Afinn, NRC, and SentimentR  affect these sentiment assessments, offering a multi-dimensional view of the emotional tones in the world famous detective series.
+
+
+The following packages were utilized in this project
+
+```{r message=FALSE, warning=FALSE, include=TRUE}
+library(dplyr)
+library(ggplot2)
+library(gutenbergr)
+library(magrittr)
+library(pacman)
+library(readtext)
+library(reshape2)
+library(stringr)
+library(sentimentr)
+library(syuzhet)
+library(textdata)
+library(tidyr)
+library(tidytext)
+library(wordcloud)
+```
+
+Let's begin by retrieving data from the Gutenberg website and take a quick glimpse of the format. 
+
+```{r message=FALSE, warning=FALSE, include=TRUE}
+adventures_Sherlock <-  gutenberg_download(48320)
+save(adventures_Sherlock, file = "adventures_Sherlock.Rdata")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+glimpse(adventures_Sherlock)
+```
+
+Upon reviewing the format of the data I confirmed that each story began with "Adventure" followed by orderly roman numbers 
+I will use the pattern to add a story index column to the data frame which I will then substitute it with the pertaining tittle name
+
+```{r message=FALSE, warning=FALSE, include=TRUE}
+
+# Identify the start of each story where "Adventure I", "Adventure II", etc., are the only words in the row
+
+story_starts <- which(str_detect(adventures_Sherlock$text, regex("^Adventure [IVXLCDM]+$", ignore_case = TRUE)))
+the_end_index <- grep("THE END", adventures_Sherlock$text)
+
+# Create a Story Index Column 
+
+story_index <- rep(NA, nrow(adventures_Sherlock))
+current_story <- NA 
+
+for (i in 1:nrow(adventures_Sherlock)) {
+    if (i %in% story_starts) {
+        if (is.na(current_story)) {
+            current_story <- 1 
+        } else {
+            current_story <- current_story + 1
+        }
+    }
+    if (!is.na(current_story) && current_story == 12 && i >= the_end_index) {
+        break 
+    }
+    story_index[i] <- current_story
+}
+
+# Add the story index to the data frame
+adventures_Sherlock$Story <- story_index
+
+```
+
+For each story in the text file, the tittle is located on the third line. In order to extract the title I need to group by story index and retrieve the third line and then merge the titles back into the dataframe using a left join. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+
+story_titles <- adventures_Sherlock %>%
+    group_by(Story) %>%
+    summarise(title = nth(text, 3), .groups = 'drop')
+
+adventures_Sherlock <- adventures_Sherlock %>%
+    left_join(story_titles, by = "Story")
+
+print(adventures_Sherlock[c(1500,3000,4500,7000),])
+```
+I will first tokenize into senteces, and then into words.
+
+
+```{r message=FALSE, warning=FALSE, include=TRUE}
+
+tidy_Sherlock = adventures_Sherlock |>
+  group_by(title) |>
+  unnest_tokens(sentence,text,token="sentences") |>
+  mutate(sentence.num = row_number()) |>
+  ungroup() |>
+  unnest_tokens(word,sentence)
+print(tidy_Sherlock[c(1500,9000,19000),])
+```
+Since the 12 Adventures have classic detective story lines I decided to use the NRC lexicon and visualize the presence of Fear and Surprise in the 12 stories and see which sentiment dominates. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE }
+nrc_surprise <- get_sentiments("nrc") %>% 
+  filter(sentiment == "surprise")
+
+nrc_fear <- get_sentiments("nrc") %>% 
+  filter(sentiment == "fear")
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+top_surprise_words <- tidy_Sherlock %>%
+  filter(title != "", title != "Introduction") %>% 
+  inner_join(nrc_surprise, by = "word") %>%
+  count(title, word) %>%
+  group_by(title) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= 5) %>%
+  ungroup()
+
+top_fear_words <- tidy_Sherlock %>%
+  filter(title != "", title != "Introduction") %>% 
+  inner_join(nrc_fear, by = "word") %>%
+  count(title, word) %>%
+  group_by(title) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= 5) %>%
+  ungroup()
+
+
+```
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE ,fig.width=8, fig.height=6, out.width='100%'}
+
+ggplot(top_surprise_words, aes(x = reorder(word, n), y = n, fill = title)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ title, scales = "free",labeller = as_labeller(function(x) str_wrap(x, width = 20))) +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "none",
+        strip.text.x = element_text(size = 6, vjust = 0.5)) +
+  labs(x = "Surprise-related Words", y = "Frequency", title = "Top Surprise Words in Each Sherlock Holmes Story")
+
+```
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE ,fig.width=8, fig.height=6, out.width='100%'}
+
+ggplot(top_fear_words, aes(x = reorder(word, n), y = n, fill = title)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ title, scales = "free",labeller = as_labeller(function(x) str_wrap(x, width = 20))) +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "none",
+        strip.text.x = element_text(size = 6, vjust = 0.5)) +
+  labs(x = "Fear-related Words", y = "Frequency", title = "Top Fear Words in Each Sherlock Holmes Story")
+
+```
+
+Next I will examine how sentiment changes throughout each story using the Bing lexicon. 
+
+```{r  message=FALSE, warning=FALSE}
+
+ Sherlcok_sentiment <- tidy_Sherlock %>%
+  filter(title != "", title != "Introduction") %>% 
+  inner_join(get_sentiments("bing")) %>%
+  count(title, index = sentence.num %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+```
+
+### Sentiment through the 12 Stories  of The Adventures of Sherlock Holmes
+```{r message=FALSE, warning=FALSE, echo=FALSE, sentimentplot, dependson = "janeaustensentiment", fig.width=18, fig.height=14, out.width='100%'}
+
+
+ggplot(Sherlcok_sentiment, aes(index, sentiment, fill = title)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~title, ncol = 2, scales = "free_x")
+
+```
+When analyzing the sentiment plots, it becomes evident that the sentiment index fluctuates significantly, not only varying from one story to another within "The Adventures of Sherlock Holmes" but also within individual stories themselves.
+
+For example we notice how "A Case of Identity", "A scandal in Bohemia" and "The Red-Headed League" there is a predominantly positive sentiment index, indicating a more upbeat or less tense narrative tone. Likely because they feature clever, humorous plotlines and resolutions without severe danger or dark themes. 
+
+While when it comes to "The Man with the Twisted Lip" and "The Adventures of the Speckled Band" we observe  predominantly negative sentiment indexes. They reflect the more suspenseful themes of deception, danger, and the threat of violence in these stories.
+
+
+
+####  Comparing the four sentiment dictionaries
+
+
+Next, I will compare the results of sentiment analyses using four different lexicons - Bing, Afinn, NRC, and SentimentR - to explore how each lexicon interprets the emotional tones in the text. To analyze the differences better I will focus in one of the short stories -The Adventure of the Engineer's Thumb"-
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+Engineers_Thumb<- tidy_Sherlock %>% 
+  filter(title == "THE ADVENTURE OF THE ENGINEER’S THUMB")
+
+afinn <- Engineers_Thumb %>% 
+  inner_join(get_sentiments("afinn")) %>% 
+  group_by(index = sentence.num %/% 35) %>% 
+  summarise(sentiment = sum(value)) %>% 
+  mutate(method = "AFINN")
+
+bing_and_nrc <- bind_rows(
+  Engineers_Thumb %>% 
+    inner_join(get_sentiments("bing")) %>%
+    mutate(method = "BING"),
+   Engineers_Thumb %>% 
+    inner_join(get_sentiments("nrc") %>% 
+                 filter(sentiment %in% c("positive", 
+                                         "negative"))
+    ) %>%
+    mutate(method = "NRC")) %>%
+  count(method, index = sentence.num %/% 35, sentiment) %>%
+  pivot_wider(names_from = sentiment,
+              values_from = n,
+              values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+bind_rows(afinn, 
+          bing_and_nrc) %>%
+  ggplot(aes(index, sentiment, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+```
+The three lexicons give results that are different but have similar relative trajectories through the Story. There are  similar dips and peaks in sentiment at about the same places in the novel excluding the end part, but the absolute values are significantly different.
+
+
+
+
+#### SentimentR
+Using SentimentR lexicon on the same story we did before "The Adventure of the Engineer's Thumb"
+
+```{r message=FALSE, warning=FALSE, echo=FALSE }
+
+ adventure_engineers <- adventures_Sherlock %>%
+  filter(title == "THE ADVENTURE OF THE ENGINEER’S THUMB")
+
+
+sentimentR_results <- with(
+  adventure_engineers,
+  sentiment_by(
+    get_sentences(text)))
+
+print(sentimentR_results)
+
+```
+
+```{r  message=FALSE, warning=FALSE, echo=FALSE}
+
+
+transformed_values <- get_dct_transform(sentimentR_results$ave_sentiment)
+
+
+ggplot(data.frame(transformed_values), aes(x = 1:length(transformed_values), y = transformed_values)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(title = "Sentiment Trajectory in 'The Adventure of the Engineer’s Thumb'",
+       x = "Percentage of Text",
+       y = "Transformed Sentiment Value")
+
+
+```
+
+When comparing the 4th sentiment analysis done with sentimentR lexicon we can easily notice that it is similar to the pattern of the other three sentiment analysis of the "The Adventure of the Engineer’s Thumb" story. 
+
+### Word Cloud of the "The Adventures of Sherlock Holmes" 
+```{r message=FALSE, warning=FALSE, echo=FALSE }
+tidy_Sherlock %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+```
+
+
+
+# Conclusion
+
+The lexicon chosen as well as the token used to base the sentiment analysis on plays a big role on the results. 
+
